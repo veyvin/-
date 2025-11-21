@@ -1,0 +1,5 @@
+{
+  "name": "VelocityVibe - Easing Coaster",
+  "description": "An interactive visualization of CSS/JavaScript easing functions presented as infinite roller coaster rides to demonstrate acceleration and physics.",
+  "requestFramePermissions": []
+}
