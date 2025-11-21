@@ -5,7 +5,7 @@ import { EasingDefinition } from '../types';
 
 const DEFAULT_CODE = `// 自定义算法模板
 // 变量 t: 0 到 1 (时间)
-// 返回值: 小车的垂直位置 (通常 0 到 1，可以溢出)
+// 返回值: 小车的水平位置 (通常 0 到 1，可以溢出)
 
 const bounces = 4;
 const decay = 3;
@@ -41,9 +41,10 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({
   const height = viewHeight;
   const paddingX = 30;
   const paddingY = 45;
+  const roadY = height - 20;
   
   const trackWidth = width - paddingX * 2;
-  const trackHeight = height - paddingY * 2;
+  const graphHeight = height - paddingY - 40;
 
   // Compile the user code into a function safely
   const customFn = useMemo(() => {
@@ -120,54 +121,32 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({
     };
   }, [isPlaying]);
 
-  // --- Visualization Logic ---
+  // Generate Graph Path Data
   const points: [number, number][] = [];
   const steps = 100;
 
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
-    const x = paddingX + t * trackWidth;
+    const x = paddingX + t * trackWidth; // X is Time
     const val = easing.fn(t);
-    const y = (height - paddingY) - (val * trackHeight); 
+    const y = (roadY - 30) - (val * graphHeight); 
     points.push([x, y]);
   }
   const pathData = `M ${points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L ')}`;
 
   // Cart calculation
   const t = progress;
-  const xPos = paddingX + t * trackWidth;
-  const yVal = easing.fn(t);
-  const yPos = (height - paddingY) - (yVal * trackHeight);
+  const val = easing.fn(t);
   
-  // Angle
-  const delta = 0.01;
-  const tNext = Math.min(t + delta, 1);
-  const xNext = paddingX + tNext * trackWidth;
-  const yNextVal = easing.fn(tNext);
-  const yNextPos = (height - paddingY) - (yNextVal * trackHeight);
-  const angleDeg = Math.atan2(yNextPos - yPos, xNext - xPos) * (180 / Math.PI);
+  const xPos = paddingX + val * trackWidth;
+  const yPos = roadY;
+  const angleDeg = 0;
 
-  const pillars = [];
-  const pillarCount = 10;
-  for(let i=0; i<=pillarCount; i++) {
-      const pt = i / pillarCount;
-      const px = paddingX + pt * trackWidth;
-      const pyVal = easing.fn(pt);
-      const py = (height - paddingY) - (pyVal * trackHeight);
-      pillars.push(
-          <line 
-            key={i} 
-            x1={px} 
-            y1={py} 
-            x2={px} 
-            y2={height} 
-            stroke={easing.color} 
-            strokeWidth="1" 
-            strokeOpacity="0.2" 
-            strokeDasharray="4 4"
-          />
-      );
-  }
+  // Time Cursor
+  const cursorX = paddingX + t * trackWidth;
+  const cursorYVal = easing.fn(t);
+  const cursorY = (roadY - 30) - (cursorYVal * graphHeight);
+
 
   return (
     <div 
@@ -221,11 +200,22 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({
                 preserveAspectRatio="xMidYMid meet"
                 className="overflow-visible"
             >
-                <line x1={paddingX} y1={height-paddingY} x2={width-paddingX} y2={height-paddingY} stroke="#334155" strokeWidth="1" />
-                <line x1={paddingX} y1={height-paddingY} x2={paddingX} y2={paddingY} stroke="#334155" strokeWidth="1" />
-                {pillars}
-                <path d={pathData} fill="none" stroke={easing.color} strokeWidth="4" strokeLinecap="round" className="drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]" />
-                <path d={pathData} fill="none" stroke={easing.color} strokeWidth="8" strokeOpacity="0.2" className="blur-sm" />
+                {/* Road */}
+                <line x1={paddingX} y1={roadY} x2={width-paddingX} y2={roadY} stroke="#334155" strokeWidth="2" />
+                <line x1={paddingX} y1={roadY-5} x2={paddingX} y2={roadY+5} stroke="#475569" strokeWidth="2" />
+                <line x1={width-paddingX} y1={roadY-5} x2={width-paddingX} y2={roadY+5} stroke="#475569" strokeWidth="2" />
+                
+                {/* Graph Axis */}
+                <line x1={paddingX} y1={roadY-30} x2={width-paddingX} y2={roadY-30} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
+
+                {/* Graph */}
+                <path d={pathData} fill="none" stroke={easing.color} strokeWidth="2" strokeOpacity="0.3" />
+                
+                {/* Cursor */}
+                <line x1={cursorX} y1={roadY - 30} x2={cursorX} y2={(roadY - 30) - graphHeight - 10} stroke="white" strokeOpacity="0.1" strokeWidth="1" />
+                <circle cx={cursorX} cy={cursorY} r="3" fill={easing.color} opacity="0.5" />
+
+                {/* Cart */}
                 <CoasterCart x={xPos} y={yPos} angle={angleDeg} color={easing.color} />
             </svg>
              {!isPlaying && progress === 0 && (
@@ -242,11 +232,10 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({
       <div 
         className="w-full md:w-1/2 lg:w-96 bg-slate-950 flex flex-col h-[300px] md:h-auto cursor-auto"
         onDragStart={(e) => {
-            // Prevent dragging when interacting with the code editor
             e.stopPropagation();
             e.preventDefault();
         }}
-        draggable={true} // Ensure wrapper handles it, but this area stops it
+        draggable={true}
       >
           <div className="p-3 border-b border-slate-800 flex justify-between items-center">
               <span className="text-xs font-mono text-slate-500">function(t) {'{'}</span>

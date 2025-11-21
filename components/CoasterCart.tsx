@@ -14,9 +14,9 @@ export const CoasterCart: React.FC<CoasterCartProps> = ({ x, y, angle, color, op
       transform={`translate(${x}, ${y}) rotate(${angle})`} 
       style={{ opacity, transition: 'opacity 0.1s' }}
     >
-      {/* Cart Body */}
+      {/* Cart Body - Simplified for horizontal view */}
       <path
-        d="M-15,-5 L15,-5 L18,0 L18,10 L-18,10 L-18,0 Z"
+        d="M-15,-5 L15,-5 L18,0 L18,5 L-18,5 L-18,0 Z"
         fill={color}
         stroke="white"
         strokeWidth="2"
@@ -33,8 +33,8 @@ export const CoasterCart: React.FC<CoasterCartProps> = ({ x, y, angle, color, op
       />
       
       {/* Wheels */}
-      <circle cx="-10" cy="12" r="4" fill="#1e293b" stroke="white" strokeWidth="1.5" />
-      <circle cx="10" cy="12" r="4" fill="#1e293b" stroke="white" strokeWidth="1.5" />
+      <circle cx="-10" cy="5" r="4" fill="#1e293b" stroke="white" strokeWidth="1.5" />
+      <circle cx="10" cy="5" r="4" fill="#1e293b" stroke="white" strokeWidth="1.5" />
       
       {/* Passengers (Dots) */}
       <circle cx="-5" cy="-2" r="2" fill="white" opacity="0.8" />

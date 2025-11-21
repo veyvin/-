@@ -27,12 +27,13 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
   
   // Track dimensions
   const width = 300;
-  const height = viewHeight;
+  const height = viewHeight; // This now controls the GRAPH height primarily
   const paddingX = 30;
   const paddingY = 45;
+  const roadY = height - 20; // The Y position of the flat road
   
   const trackWidth = width - paddingX * 2;
-  const trackHeight = height - paddingY * 2;
+  const graphHeight = height - paddingY - 40; // Height reserved for the curve graph
 
   // Sync with global play state
   useEffect(() => {
@@ -74,68 +75,41 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
     };
   }, [isPlaying]);
 
-  // Generate Path Data
+  // Generate Graph Path Data (X = Time, Y = Value)
   const points: [number, number][] = [];
   const steps = 100;
   
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
-    const x = paddingX + t * trackWidth;
+    const x = paddingX + t * trackWidth; // X is Time
     const val = easing.fn(t);
-    const y = (height - paddingY) - (val * trackHeight); 
+    // Invert Y for SVG (0 at top)
+    // Map val 0->1 to graph area
+    const y = (roadY - 30) - (val * graphHeight); 
     points.push([x, y]);
   }
 
   const pathData = `M ${points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L ')}`;
 
-  // Calculate Cart Position & Angle
+  // Calculate Cart Position (Horizontal Race Mode)
   const t = progress;
-  const xPos = paddingX + t * trackWidth;
-  const yVal = easing.fn(t);
-  const yPos = (height - paddingY) - (yVal * trackHeight);
-
-  // Calculate derivative for angle
-  const delta = 0.01;
-  const tNext = Math.min(t + delta, 1);
-  const xNext = paddingX + tNext * trackWidth;
-  const yNextVal = easing.fn(tNext);
-  const yNextPos = (height - paddingY) - (yNextVal * trackHeight);
+  const val = easing.fn(t);
   
-  const dx = xNext - xPos;
-  const dy = yNextPos - yPos;
-  const angleRad = Math.atan2(dy, dx);
-  const angleDeg = angleRad * (180 / Math.PI);
+  // Cart moves horizontally based on easing value
+  const xPos = paddingX + val * trackWidth;
+  const yPos = roadY;
+  const angleDeg = 0; // Flat on the ground
 
-  // Support Pillars
-  const pillars = [];
-  const pillarCount = 10;
-  for(let i=0; i<=pillarCount; i++) {
-      const pt = i / pillarCount;
-      const px = paddingX + pt * trackWidth;
-      const pyVal = easing.fn(pt);
-      const py = (height - paddingY) - (pyVal * trackHeight);
-      
-      pillars.push(
-          <line 
-            key={i} 
-            x1={px} 
-            y1={py} 
-            x2={px} 
-            y2={height} 
-            stroke={easing.color} 
-            strokeWidth="1" 
-            strokeOpacity="0.2" 
-            strokeDasharray="4 4"
-          />
-      );
-  }
+  // Time Cursor Position (on the graph)
+  const cursorX = paddingX + t * trackWidth;
+  const cursorYVal = easing.fn(t);
+  const cursorY = (roadY - 30) - (cursorYVal * graphHeight);
 
   return (
     <div 
         className="relative bg-slate-900 rounded-xl overflow-hidden border border-slate-800 shadow-xl flex flex-col group hover:border-slate-600 transition-all duration-300 cursor-move"
         draggable
         onDragStart={(e) => {
-            // Slightly reduce opacity on drag
             e.currentTarget.style.opacity = '0.5';
             onDragStart?.();
         }}
@@ -144,7 +118,7 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
             onDragEnd?.();
         }}
         onDragEnter={onDragEnter}
-        onDragOver={(e) => e.preventDefault()} // Necessary to allow dropping
+        onDragOver={(e) => e.preventDefault()} 
     >
       {/* Header */}
       <div className="p-4 border-b border-slate-800 bg-slate-950/50 flex justify-between items-start relative z-10">
@@ -189,35 +163,46 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
           preserveAspectRatio="xMidYMid meet"
           className="overflow-visible"
         >
-           <line x1={paddingX} y1={height-paddingY} x2={width-paddingX} y2={height-paddingY} stroke="#334155" strokeWidth="1" />
-           <line x1={paddingX} y1={height-paddingY} x2={paddingX} y2={paddingY} stroke="#334155" strokeWidth="1" />
+           {/* The Road (Flat Plane) */}
+           <line x1={paddingX} y1={roadY} x2={width-paddingX} y2={roadY} stroke="#334155" strokeWidth="2" />
+           
+           {/* Start/End Markers on Road */}
+           <line x1={paddingX} y1={roadY-5} x2={paddingX} y2={roadY+5} stroke="#475569" strokeWidth="2" />
+           <line x1={width-paddingX} y1={roadY-5} x2={width-paddingX} y2={roadY+5} stroke="#475569" strokeWidth="2" />
+           
+           {/* Graph Axis (Time Axis) */}
+           <line x1={paddingX} y1={roadY-30} x2={width-paddingX} y2={roadY-30} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
 
-           {pillars}
-
+           {/* The Graph Curve (Background) */}
            <path 
              d={pathData} 
              fill="none" 
              stroke={easing.color} 
-             strokeWidth="4" 
-             strokeLinecap="round"
-             className="drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]"
+             strokeWidth="2" 
+             strokeOpacity="0.3"
+           />
+
+           {/* Time Cursor (Scan line on graph) */}
+           <line 
+             x1={cursorX} 
+             y1={roadY - 30} 
+             x2={cursorX} 
+             y2={(roadY - 30) - graphHeight - 10} 
+             stroke="white" 
+             strokeOpacity="0.1"
+             strokeWidth="1"
            />
            
-           <path 
-             d={pathData} 
-             fill="none" 
-             stroke={easing.color} 
-             strokeWidth="8" 
-             strokeOpacity="0.2"
-             className="blur-sm"
-           />
+           {/* Intersection Dot on Graph */}
+           <circle cx={cursorX} cy={cursorY} r="3" fill={easing.color} opacity="0.5" />
 
+           {/* The Car (Running on the flat road) */}
            <CoasterCart 
              x={xPos} 
              y={yPos} 
              angle={angleDeg} 
              color={easing.color}
-             opacity={progress > 0.95 ? (1 - progress) / 0.05 : progress < 0.05 ? progress / 0.05 : 1}
+             opacity={1}
            />
         </svg>
         
