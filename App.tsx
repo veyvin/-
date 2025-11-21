@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Hero } from './components/Hero';
 import { CoasterTrack } from './components/CoasterTrack';
 import { CustomCoasterTrack } from './components/CustomCoasterTrack';
 import { easings } from './utils/easings';
-import { PlayCircle, PauseCircle, ChevronsUp } from 'lucide-react';
+import { PlayCircle, PauseCircle, ChevronsLeftRight } from 'lucide-react';
 import { EasingDefinition } from './types';
 
 // Define a union type for our grid items
@@ -13,7 +13,7 @@ type GridItem =
 
 const App: React.FC = () => {
   const [isAllPlaying, setIsAllPlaying] = useState(false);
-  const [trackHeight, setTrackHeight] = useState(200);
+  const [trackHeight, setTrackHeight] = useState(300);
 
   // Initialize state with Custom track first, followed by standard easings
   const [gridItems, setGridItems] = useState<GridItem[]>(() => {
@@ -31,6 +31,20 @@ const App: React.FC = () => {
   const toggleAll = () => {
     setIsAllPlaying(!isAllPlaying);
   };
+
+  // Add new track handler - wrapped in useCallback
+  const handleAddTrack = useCallback((newEasing: EasingDefinition) => {
+    setGridItems(prev => {
+      // Find current index of the custom track
+      const customIndex = prev.findIndex(item => item.id === 'custom-track');
+      // Insert immediately after it, or at index 1 if not found for some reason
+      const insertIndex = customIndex !== -1 ? customIndex + 1 : 1;
+      
+      const newItems = [...prev];
+      newItems.splice(insertIndex, 0, { type: 'standard', id: newEasing.id, data: newEasing });
+      return newItems;
+    });
+  }, []);
 
   // DND Handlers
   const handleDragStart = (position: number) => {
@@ -83,7 +97,7 @@ const App: React.FC = () => {
             <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-4">
                 {/* Height Slider */}
                 <div className="flex items-center gap-4 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-800 flex-1">
-                    <ChevronsUp size={18} className="text-slate-400" />
+                    <ChevronsLeftRight size={18} className="text-slate-400 rotate-90" />
                     <div className="flex flex-col w-full sm:w-32 lg:w-40">
                         <label htmlFor="height-slider" className="text-xs text-slate-400 font-medium flex justify-between">
                             <span>高度 (Height)</span>
@@ -92,7 +106,7 @@ const App: React.FC = () => {
                         <input 
                             id="height-slider"
                             type="range" 
-                            min="150" 
+                            min="200" 
                             max="500" 
                             step="10"
                             value={trackHeight}
@@ -131,10 +145,11 @@ const App: React.FC = () => {
                     <CustomCoasterTrack 
                         key={item.id}
                         isPlayingGlobal={isAllPlaying} 
-                        viewHeight={trackHeight}
+                        viewWidth={trackHeight} 
                         onDragStart={() => handleDragStart(index)}
                         onDragEnter={() => handleDragEnter(index)}
                         onDragEnd={handleDragEnd}
+                        onAdd={handleAddTrack}
                     />
                   );
               } else {
@@ -143,7 +158,7 @@ const App: React.FC = () => {
                         key={item.id} 
                         easing={item.data} 
                         isPlayingGlobal={isAllPlaying}
-                        viewHeight={trackHeight}
+                        viewWidth={trackHeight}
                         onDragStart={() => handleDragStart(index)}
                         onDragEnter={() => handleDragEnter(index)}
                         onDragEnd={handleDragEnd}

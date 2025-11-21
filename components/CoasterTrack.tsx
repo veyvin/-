@@ -6,7 +6,7 @@ import { Play, Pause, GripVertical } from 'lucide-react';
 interface CoasterTrackProps {
   easing: EasingDefinition;
   isPlayingGlobal: boolean;
-  viewHeight?: number;
+  viewWidth?: number;
   onDragStart?: () => void;
   onDragEnter?: () => void;
   onDragEnd?: () => void;
@@ -15,7 +15,7 @@ interface CoasterTrackProps {
 export const CoasterTrack: React.FC<CoasterTrackProps> = ({ 
   easing, 
   isPlayingGlobal, 
-  viewHeight = 150,
+  viewWidth = 300,
   onDragStart,
   onDragEnter,
   onDragEnd
@@ -26,14 +26,16 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
   const previousTimeRef = useRef<number | undefined>(undefined);
   
   // Track dimensions
-  const width = 300;
-  const height = viewHeight; // This now controls the GRAPH height primarily
-  const paddingX = 30;
+  const width = viewWidth;
+  const height = 250; // Fixed height
+  
+  // Increased padding to prevent clipping of Back/Elastic functions
+  const paddingX = 40; 
   const paddingY = 45;
-  const roadY = height - 20; // The Y position of the flat road
+  const roadY = height - 20; 
   
   const trackWidth = width - paddingX * 2;
-  const graphHeight = height - paddingY - 40; // Height reserved for the curve graph
+  const graphHeight = height - paddingY - 40; 
 
   // Sync with global play state
   useEffect(() => {
@@ -47,8 +49,6 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
   const animate = (time: number) => {
     if (previousTimeRef.current !== undefined) {
       const deltaTime = time - previousTimeRef.current;
-      
-      // Speed: 1 complete loop every 2000ms (2 seconds)
       const speed = 0.0005; 
       
       setProgress(prev => {
@@ -75,35 +75,36 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
     };
   }, [isPlaying]);
 
-  // Generate Graph Path Data (X = Time, Y = Value)
+  // Generate Graph Path Data (X = Position, Y = Time)
   const points: [number, number][] = [];
   const steps = 100;
   
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
-    const x = paddingX + t * trackWidth; // X is Time
     const val = easing.fn(t);
-    // Invert Y for SVG (0 at top)
-    // Map val 0->1 to graph area
-    const y = (roadY - 30) - (val * graphHeight); 
+    
+    // X is Position (Value) - Matches Car
+    const x = paddingX + val * trackWidth; 
+    
+    // Y is Time - Bottom to Top
+    const y = (roadY - 30) - (t * graphHeight); 
+    
     points.push([x, y]);
   }
 
   const pathData = `M ${points.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L ')}`;
 
-  // Calculate Cart Position (Horizontal Race Mode)
+  // Calculate Cart Position
   const t = progress;
   const val = easing.fn(t);
   
-  // Cart moves horizontally based on easing value
   const xPos = paddingX + val * trackWidth;
   const yPos = roadY;
-  const angleDeg = 0; // Flat on the ground
+  const angleDeg = 0;
 
-  // Time Cursor Position (on the graph)
-  const cursorX = paddingX + t * trackWidth;
-  const cursorYVal = easing.fn(t);
-  const cursorY = (roadY - 30) - (cursorYVal * graphHeight);
+  // Time Cursor Position
+  const cursorX = xPos;
+  const cursorY = (roadY - 30) - (t * graphHeight);
 
   return (
     <div 
@@ -148,7 +149,6 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
         style={{ height: '250px' }}
         onClick={() => setIsPlaying(!isPlaying)}
       >
-        {/* Grid Background */}
         <div className="absolute inset-0 opacity-10" 
              style={{ 
                backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', 
@@ -163,17 +163,22 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
           preserveAspectRatio="xMidYMid meet"
           className="overflow-visible"
         >
-           {/* The Road (Flat Plane) */}
+           {/* Axis Labels */}
+           <text x={paddingX - 10} y={roadY - 30 - graphHeight/2} fill="#64748b" fontSize="10" transform={`rotate(-90, ${paddingX - 10}, ${roadY - 30 - graphHeight/2})`} textAnchor="middle">Time (t)</text>
+           <text x={width/2} y={roadY - 10} fill="#64748b" fontSize="10" textAnchor="middle">Position (x)</text>
+
+           {/* The Road */}
            <line x1={paddingX} y1={roadY} x2={width-paddingX} y2={roadY} stroke="#334155" strokeWidth="2" />
            
-           {/* Start/End Markers on Road */}
+           {/* Start/End Markers */}
            <line x1={paddingX} y1={roadY-5} x2={paddingX} y2={roadY+5} stroke="#475569" strokeWidth="2" />
            <line x1={width-paddingX} y1={roadY-5} x2={width-paddingX} y2={roadY+5} stroke="#475569" strokeWidth="2" />
            
-           {/* Graph Axis (Time Axis) */}
+           {/* Graph Axes */}
            <line x1={paddingX} y1={roadY-30} x2={width-paddingX} y2={roadY-30} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
+           <line x1={paddingX} y1={(roadY-30) - graphHeight} x2={width-paddingX} y2={(roadY-30) - graphHeight} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
 
-           {/* The Graph Curve (Background) */}
+           {/* The Graph Curve */}
            <path 
              d={pathData} 
              fill="none" 
@@ -182,21 +187,21 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
              strokeOpacity="0.3"
            />
 
-           {/* Time Cursor (Scan line on graph) */}
+           {/* Time Cursor Line */}
            <line 
              x1={cursorX} 
              y1={roadY - 30} 
              x2={cursorX} 
-             y2={(roadY - 30) - graphHeight - 10} 
+             y2={cursorY} 
              stroke="white" 
-             strokeOpacity="0.1"
+             strokeOpacity="0.2"
              strokeWidth="1"
+             strokeDasharray="2 2"
            />
            
-           {/* Intersection Dot on Graph */}
-           <circle cx={cursorX} cy={cursorY} r="3" fill={easing.color} opacity="0.5" />
+           <circle cx={cursorX} cy={cursorY} r="3" fill={easing.color} opacity="0.8" />
 
-           {/* The Car (Running on the flat road) */}
+           {/* The Car */}
            <CoasterCart 
              x={xPos} 
              y={yPos} 
@@ -206,7 +211,6 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({
            />
         </svg>
         
-        {/* "Click to Start" Overlay if stopped */}
         {!isPlaying && progress === 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px] transition-opacity opacity-0 group-hover:opacity-100">
                 <div className="bg-slate-900/90 px-4 py-2 rounded-full border border-slate-700 text-xs text-slate-300 font-medium flex items-center gap-2">
