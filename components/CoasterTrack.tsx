@@ -9,7 +9,11 @@ interface CoasterTrackProps {
   viewHeight?: number;
 }
 
-export const CoasterTrack: React.FC<CoasterTrackProps> = ({ easing, isPlayingGlobal, viewHeight = 150 }) => {
+export const CoasterTrack: React.FC<CoasterTrackProps> = ({ 
+  easing, 
+  isPlayingGlobal, 
+  viewHeight = 150
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const requestRef = useRef<number | undefined>(undefined);
@@ -17,28 +21,39 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({ easing, isPlayingGlo
   
   // Track dimensions
   const width = 300;
-  const height = viewHeight; // Use dynamic height
-  // Increased vertical padding to handle "Elastic" and "Back" functions that overshoot 0 and 1
+  const height = viewHeight;
   const paddingX = 30;
   const paddingY = 45;
+  
   const trackWidth = width - paddingX * 2;
   const trackHeight = height - paddingY * 2;
 
   // Sync with global play state
   useEffect(() => {
     setIsPlaying(isPlayingGlobal);
+    // When global play is triggered, reset everyone to the start line for a fair race
+    if (isPlayingGlobal) {
+        setProgress(0);
+    }
   }, [isPlayingGlobal]);
 
   // Animation Loop
   const animate = (time: number) => {
     if (previousTimeRef.current !== undefined) {
       const deltaTime = time - previousTimeRef.current;
-      // Speed: Completes loop in approx 2.5 seconds
-      const speed = 0.0004; 
+      
+      // Speed: 1 complete loop every 2000ms (2 seconds)
+      // 0.0005 units per ms
+      const speed = 0.0005; 
       
       setProgress(prev => {
         const next = prev + deltaTime * speed;
-        return next > 1 ? 0 : next; // Infinite loop
+        // Use modulo 1 logic to keep the overflow. 
+        // If next is 1.01, it becomes 0.01, preserving the timing.
+        if (next >= 1) {
+            return next % 1;
+        }
+        return next;
       });
     }
     previousTimeRef.current = time;
@@ -60,6 +75,7 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({ easing, isPlayingGlo
   // Generate Path Data
   const points: [number, number][] = [];
   const steps = 100;
+  
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const x = paddingX + t * trackWidth;
@@ -89,16 +105,15 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({ easing, isPlayingGlo
   const angleRad = Math.atan2(dy, dx);
   const angleDeg = angleRad * (180 / Math.PI);
 
-  // Support Pillars (Vertical lines to create coaster structure)
+  // Support Pillars
   const pillars = [];
-  for(let i=0; i<=10; i++) {
-      const pt = i / 10;
+  const pillarCount = 10;
+  for(let i=0; i<=pillarCount; i++) {
+      const pt = i / pillarCount;
       const px = paddingX + pt * trackWidth;
       const pyVal = easing.fn(pt);
       const py = (height - paddingY) - (pyVal * trackHeight);
       
-      // Ensure pillar doesn't draw upwards if the track goes below bottom (rare but possible in elastic)
-      // Just clamping drawing to height is fine
       pillars.push(
           <line 
             key={i} 
@@ -136,15 +151,24 @@ export const CoasterTrack: React.FC<CoasterTrackProps> = ({ easing, isPlayingGlo
       {/* Visualization Area */}
       <div 
         className="relative flex-1 bg-slate-900 transition-all duration-300" 
-        style={{ height: `${height}px` }}
+        style={{ height: '250px' }}
         onClick={() => setIsPlaying(!isPlaying)}
       >
         {/* Grid Background */}
         <div className="absolute inset-0 opacity-10" 
-             style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+             style={{ 
+               backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', 
+               backgroundSize: '20px 20px' 
+             }}>
         </div>
 
-        <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+        <svg 
+          width="100%" 
+          height="100%" 
+          viewBox={`0 0 ${width} ${height}`} 
+          preserveAspectRatio="xMidYMid meet"
+          className="overflow-visible"
+        >
            {/* Axes */}
            <line x1={paddingX} y1={height-paddingY} x2={width-paddingX} y2={height-paddingY} stroke="#334155" strokeWidth="1" />
            <line x1={paddingX} y1={height-paddingY} x2={paddingX} y2={paddingY} stroke="#334155" strokeWidth="1" />

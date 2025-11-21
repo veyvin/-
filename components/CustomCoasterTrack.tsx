@@ -3,7 +3,6 @@ import { CoasterCart } from './CoasterCart';
 import { Play, Pause, Code, AlertCircle } from 'lucide-react';
 import { EasingDefinition } from '../types';
 
-// 默认模板代码
 const DEFAULT_CODE = `// 自定义算法模板
 // 变量 t: 0 到 1 (时间)
 // 返回值: 小车的垂直位置 (通常 0 到 1，可以溢出)
@@ -19,7 +18,10 @@ interface CustomCoasterTrackProps {
   viewHeight?: number;
 }
 
-export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ isPlayingGlobal, viewHeight = 150 }) => {
+export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ 
+  isPlayingGlobal, 
+  viewHeight = 150
+}) => {
   const [code, setCode] = useState(DEFAULT_CODE);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -28,11 +30,12 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ isPlayin
   const requestRef = useRef<number | undefined>(undefined);
   const previousTimeRef = useRef<number | undefined>(undefined);
 
-  // Track dimensions (Matched with CoasterTrack)
+  // Track dimensions
   const width = 300;
   const height = viewHeight;
   const paddingX = 30;
   const paddingY = 45;
+  
   const trackWidth = width - paddingX * 2;
   const trackHeight = height - paddingY * 2;
 
@@ -75,19 +78,24 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ isPlayin
 
   // Sync with global play state
   useEffect(() => {
-    if (isPlayingGlobal) setIsPlaying(true);
     setIsPlaying(isPlayingGlobal);
+    if (isPlayingGlobal) {
+      setProgress(0);
+    }
   }, [isPlayingGlobal]);
 
   // Animation Loop
   const animate = (time: number) => {
     if (previousTimeRef.current !== undefined) {
       const deltaTime = time - previousTimeRef.current;
-      const speed = 0.0004; 
+      const speed = 0.0005; 
       
       setProgress(prev => {
         const next = prev + deltaTime * speed;
-        return next > 1 ? 0 : next; 
+        if (next >= 1) {
+            return next % 1;
+        }
+        return next; 
       });
     }
     previousTimeRef.current = time;
@@ -106,10 +114,10 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ isPlayin
     };
   }, [isPlaying]);
 
-  // --- Visualization Logic (Duplicated from CoasterTrack for independence) ---
-  
+  // --- Visualization Logic ---
   const points: [number, number][] = [];
   const steps = 100;
+
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const x = paddingX + t * trackWidth;
@@ -134,13 +142,24 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ isPlayin
   const angleDeg = Math.atan2(yNextPos - yPos, xNext - xPos) * (180 / Math.PI);
 
   const pillars = [];
-  for(let i=0; i<=10; i++) {
-      const pt = i / 10;
+  const pillarCount = 10;
+  for(let i=0; i<=pillarCount; i++) {
+      const pt = i / pillarCount;
       const px = paddingX + pt * trackWidth;
       const pyVal = easing.fn(pt);
       const py = (height - paddingY) - (pyVal * trackHeight);
       pillars.push(
-          <line key={i} x1={px} y1={py} x2={px} y2={height} stroke={easing.color} strokeWidth="1" strokeOpacity="0.2" strokeDasharray="4 4" />
+          <line 
+            key={i} 
+            x1={px} 
+            y1={py} 
+            x2={px} 
+            y2={height} 
+            stroke={easing.color} 
+            strokeWidth="1" 
+            strokeOpacity="0.2" 
+            strokeDasharray="4 4"
+          />
       );
   }
 
@@ -164,11 +183,22 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ isPlayin
         
         <div 
             className="relative flex-1 bg-slate-900 transition-all duration-300" 
-            style={{ height: `${height}px` }}
+            style={{ height: '300px' }} 
             onClick={() => setIsPlaying(!isPlaying)}
         >
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-            <svg width="100%" height="100%" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+            <div className="absolute inset-0 opacity-10" 
+                style={{ 
+                    backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', 
+                    backgroundSize: '20px 20px' 
+                }}>
+            </div>
+            <svg 
+                width="100%" 
+                height="100%" 
+                viewBox={`0 0 ${width} ${height}`} 
+                preserveAspectRatio="xMidYMid meet"
+                className="overflow-visible"
+            >
                 <line x1={paddingX} y1={height-paddingY} x2={width-paddingX} y2={height-paddingY} stroke="#334155" strokeWidth="1" />
                 <line x1={paddingX} y1={height-paddingY} x2={paddingX} y2={paddingY} stroke="#334155" strokeWidth="1" />
                 {pillars}
@@ -187,7 +217,7 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ isPlayin
       </div>
 
       {/* Editor Side */}
-      <div className="w-full md:w-1/2 lg:w-96 bg-slate-950 flex flex-col">
+      <div className="w-full md:w-1/2 lg:w-96 bg-slate-950 flex flex-col h-[300px] md:h-auto">
           <div className="p-3 border-b border-slate-800 flex justify-between items-center">
               <span className="text-xs font-mono text-slate-500">function(t) {'{'}</span>
               {error && <span className="flex items-center gap-1 text-xs text-red-400"><AlertCircle size={12}/> 语法错误</span>}
