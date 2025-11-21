@@ -1,16 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Hero } from './components/Hero';
 import { CoasterTrack } from './components/CoasterTrack';
 import { CustomCoasterTrack } from './components/CustomCoasterTrack';
 import { easings } from './utils/easings';
 import { PlayCircle, PauseCircle, ChevronsUp } from 'lucide-react';
+import { EasingDefinition } from './types';
+
+// Define a union type for our grid items
+type GridItem = 
+  | { type: 'custom'; id: 'custom-track' }
+  | { type: 'standard'; id: string; data: EasingDefinition };
 
 const App: React.FC = () => {
   const [isAllPlaying, setIsAllPlaying] = useState(false);
   const [trackHeight, setTrackHeight] = useState(200);
 
+  // Initialize state with Custom track first, followed by standard easings
+  const [gridItems, setGridItems] = useState<GridItem[]>(() => {
+    const initialItems: GridItem[] = [
+        { type: 'custom', id: 'custom-track' },
+        ...easings.map(e => ({ type: 'standard' as const, id: e.id, data: e }))
+    ];
+    return initialItems;
+  });
+
+  // Drag and Drop Refs
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+
   const toggleAll = () => {
     setIsAllPlaying(!isAllPlaying);
+  };
+
+  // DND Handlers
+  const handleDragStart = (position: number) => {
+    dragItem.current = position;
+  };
+
+  const handleDragEnter = (position: number) => {
+    dragOverItem.current = position;
+    
+    // If we are over a different item, swap them immediately for visual feedback
+    if (dragItem.current !== null && dragItem.current !== position) {
+        const newItems = [...gridItems];
+        const draggedItemContent = newItems[dragItem.current];
+        
+        // Remove from old pos
+        newItems.splice(dragItem.current, 1);
+        // Insert at new pos
+        newItems.splice(position, 0, draggedItemContent);
+        
+        dragItem.current = position; // Update reference to new position
+        setGridItems(newItems);
+    }
+  };
+
+  const handleDragEnd = () => {
+    dragItem.current = null;
+    dragOverItem.current = null;
   };
 
   return (
@@ -25,10 +72,12 @@ const App: React.FC = () => {
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     轨道总览 
                     <span className="text-xs font-normal text-slate-500 px-2 py-0.5 bg-slate-900 rounded-full border border-slate-800">
-                        {easings.length + 1} Tracks
+                        {gridItems.length} Tracks
                     </span>
                 </h2>
-                <p className="text-sm text-slate-500 hidden sm:block mt-1">点击单个卡片控制，或使用总开关。</p>
+                <p className="text-sm text-slate-500 hidden sm:block mt-1">
+                   <span className="text-blue-400 font-medium">提示:</span> 拖动卡片可调整顺序进行对比
+                </p>
             </div>
 
             <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-4">
@@ -76,21 +125,32 @@ const App: React.FC = () => {
 
         {/* Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {/* Custom DIY Track (Spans 2 columns) */}
-          <CustomCoasterTrack 
-            isPlayingGlobal={isAllPlaying} 
-            viewHeight={trackHeight}
-          />
-
-          {/* Standard Tracks */}
-          {easings.map((easing) => (
-            <CoasterTrack 
-              key={easing.id} 
-              easing={easing} 
-              isPlayingGlobal={isAllPlaying}
-              viewHeight={trackHeight}
-            />
-          ))}
+          {gridItems.map((item, index) => {
+              if (item.type === 'custom') {
+                  return (
+                    <CustomCoasterTrack 
+                        key={item.id}
+                        isPlayingGlobal={isAllPlaying} 
+                        viewHeight={trackHeight}
+                        onDragStart={() => handleDragStart(index)}
+                        onDragEnter={() => handleDragEnter(index)}
+                        onDragEnd={handleDragEnd}
+                    />
+                  );
+              } else {
+                  return (
+                    <CoasterTrack 
+                        key={item.id} 
+                        easing={item.data} 
+                        isPlayingGlobal={isAllPlaying}
+                        viewHeight={trackHeight}
+                        onDragStart={() => handleDragStart(index)}
+                        onDragEnter={() => handleDragEnter(index)}
+                        onDragEnd={handleDragEnd}
+                    />
+                  );
+              }
+          })}
         </div>
 
         {/* Footer Info */}

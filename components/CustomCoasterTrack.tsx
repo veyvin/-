@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { CoasterCart } from './CoasterCart';
-import { Play, Pause, Code, AlertCircle } from 'lucide-react';
+import { Play, Pause, Code, AlertCircle, GripVertical } from 'lucide-react';
 import { EasingDefinition } from '../types';
 
 const DEFAULT_CODE = `// 自定义算法模板
@@ -16,11 +16,17 @@ return t + Math.sin(t * Math.PI * bounces) * 0.1 * Math.exp(-t * decay);`;
 interface CustomCoasterTrackProps {
   isPlayingGlobal: boolean;
   viewHeight?: number;
+  onDragStart?: () => void;
+  onDragEnter?: () => void;
+  onDragEnd?: () => void;
 }
 
 export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({ 
   isPlayingGlobal, 
-  viewHeight = 150
+  viewHeight = 150,
+  onDragStart,
+  onDragEnter,
+  onDragEnd
 }) => {
   const [code, setCode] = useState(DEFAULT_CODE);
   const [error, setError] = useState<string | null>(null);
@@ -164,17 +170,33 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({
   }
 
   return (
-    <div className="col-span-1 md:col-span-2 lg:col-span-2 bg-slate-900 rounded-xl overflow-hidden border border-slate-800 shadow-xl flex flex-col md:flex-row group hover:border-slate-600 transition-all duration-300">
+    <div 
+        className="col-span-1 md:col-span-2 lg:col-span-2 bg-slate-900 rounded-xl overflow-hidden border border-slate-800 shadow-xl flex flex-col md:flex-row group hover:border-slate-600 transition-all duration-300 cursor-move"
+        draggable
+        onDragStart={(e) => {
+            e.currentTarget.style.opacity = '0.5';
+            onDragStart?.();
+        }}
+        onDragEnd={(e) => {
+            e.currentTarget.style.opacity = '1';
+            onDragEnd?.();
+        }}
+        onDragEnter={onDragEnter}
+        onDragOver={(e) => e.preventDefault()}
+    >
       
       {/* Visualization Side */}
       <div className="flex-1 flex flex-col border-b md:border-b-0 md:border-r border-slate-800">
         <div className="p-4 bg-slate-950/50 flex justify-between items-center border-b border-slate-800">
              <div className="flex items-center gap-2">
+                <div className="text-slate-600 group-hover:text-slate-400 cursor-grab active:cursor-grabbing">
+                    <GripVertical size={18} />
+                </div>
                 <Code size={18} className="text-purple-500" />
                 <h3 className="text-lg font-bold text-white">{easing.name}</h3>
              </div>
              <button 
-                onClick={() => setIsPlaying(!isPlaying)}
+                onClick={(e) => { e.stopPropagation(); setIsPlaying(!isPlaying); }}
                 className="text-slate-400 hover:text-white transition-colors p-2 bg-slate-800 rounded-lg hover:bg-slate-700"
               >
                   {isPlaying ? <Pause size={16} /> : <Play size={16} />}
@@ -182,7 +204,7 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({
         </div>
         
         <div 
-            className="relative flex-1 bg-slate-900 transition-all duration-300" 
+            className="relative flex-1 bg-slate-900 transition-all duration-300 cursor-pointer" 
             style={{ height: '300px' }} 
             onClick={() => setIsPlaying(!isPlaying)}
         >
@@ -217,7 +239,15 @@ export const CustomCoasterTrack: React.FC<CustomCoasterTrackProps> = ({
       </div>
 
       {/* Editor Side */}
-      <div className="w-full md:w-1/2 lg:w-96 bg-slate-950 flex flex-col h-[300px] md:h-auto">
+      <div 
+        className="w-full md:w-1/2 lg:w-96 bg-slate-950 flex flex-col h-[300px] md:h-auto cursor-auto"
+        onDragStart={(e) => {
+            // Prevent dragging when interacting with the code editor
+            e.stopPropagation();
+            e.preventDefault();
+        }}
+        draggable={true} // Ensure wrapper handles it, but this area stops it
+      >
           <div className="p-3 border-b border-slate-800 flex justify-between items-center">
               <span className="text-xs font-mono text-slate-500">function(t) {'{'}</span>
               {error && <span className="flex items-center gap-1 text-xs text-red-400"><AlertCircle size={12}/> 语法错误</span>}
